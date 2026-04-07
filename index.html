@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlockDown</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .game-container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: glow 2s ease-in-out infinite alternate;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes glow {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.3); }
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .score-item {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 120px;
+        }
+
+        .score-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .score-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #feca57;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            margin: 0 auto 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cell.filled {
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .cell.preview {
+            background: rgba(255, 255, 255, 0.2) !important;
+            border-color: rgba(255, 255, 255, 0.4) !important;
+        }
+
+        .shapes-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            min-height: 100px;
+        }
+
+        .shape-preview {
+            display: grid;
+            gap: 2px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            cursor: grab;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .shape-preview:hover {
+            transform: scale(1.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .shape-preview.selected {
+            border-color: #feca57;
+            box-shadow: 0 0 20px rgba(254, 202, 87, 0.5);
+        }
+
+        .shape-cell {
+            width: 25px;
+            height: 25px;
+            border-radius: 4px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(255, 107, 107, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .combo-text {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: bold;
+            color: #feca57;
+            text-shadow: 0 0 30px rgba(254, 202, 87, 0.8);
+            pointer-events: none;
+            animation: comboAnim 1s ease-out forwards;
+            z-index: 1000;
+        }
+
+        @keyframes comboAnim {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .game-over.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .game-over h2 {
+            font-size: 3rem;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+
+        .game-over p {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            opacity: 0.7;
+            font-size: 0.9rem;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🎮 BlockDown</h1>
+        
+        <div class="score-board">
+            <div class="score-item">
+                <div class="score-label">Счёт</div>
+                <div class="score-value" id="score">0</div>
+            </div>
+            <div class="score-item">
+                <div class="score-label">Рекорд</div>
+                <div class="score-value" id="best-score">0</div>
+            </div>
+        </div>
+
+        <div class="game-board" id="game-board"></div>
+
+        <div class="shapes-container" id="shapes-container"></div>
+
+        <button class="btn" onclick="resetGame()">Новая игра</button>
+
+        <div class="instructions">
+            Перетаскивайте фигуры на поле или кликайте для выбора.<br>
+            Заполняйте строки и столбцы, чтобы очистить их!<br>
+            Комбо из нескольких линий даёт больше очков!
+        </div>
+    </div>
+
+    <div class="game-over" id="game-over">
+        <h2>Игра окончена!</h2>
+        <p>Ваш счёт: <span id="final-score">0</span></p>
+        <button class="btn" onclick="resetGame()">Играть снова</button>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 8;
+        const COLORS = [
+            '#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', 
+            '#54a0ff', '#5f27cd', '#00d2d3', '#1dd1a1'
+        ];
+
+        const SHAPES = [
+            [[1]],
+            [[1, 1]],
+            [[1], [1]],
+            [[1, 1, 1]],
+            [[1], [1], [1]],
+            [[1, 1], [1, 1]],
+            [[1, 1, 1], [0, 1, 0]],
+            [[0, 1, 0], [1, 1, 1]],
+            [[1, 0], [1, 0], [1, 1]],
+            [[0, 1], [0, 1], [1, 1]],
+            [[1, 1, 0], [0, 1, 1]],
+            [[0, 1, 1], [1, 1, 0]],
+            [[1, 1, 1, 1]],
+            [[1], [1], [1], [1]],
+            [[1, 1, 1], [1, 0, 0]],
+            [[1, 1, 1], [0, 0, 1]]
+        ];
+
+        let board = [];
+        let score = 0;
+        let bestScore = localStorage.getItem('blockdown-best') || 0;
+        let currentShapes = [];
+        let selectedShapeIndex = -1;
+
+        function init() {
+            document.getElementById('best-score').textContent = bestScore;
+            createBoard();
+            generateShapes();
+        }
+
+        function createBoard() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+            board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    
+                    cell.addEventListener('dragover', handleDragOver);
+                    cell.addEventListener('dragleave', handleDragLeave);
+                    cell.addEventListener('drop', handleDrop);
+                    cell.addEventListener('click', handleClick);
+                    
+                    gameBoard.appendChild(cell);
+                }
+            }
+        }
+
+        function generateShapes() {
+            currentShapes = [];
+            const container = document.getElementById('shapes-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < 3; i++) {
+                const shapeIndex = Math.floor(Math.random() * SHAPES.length);
+                const shape = SHAPES[shapeIndex];
+                const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                
+                currentShapes.push({ shape, color, used: false });
+                
+                const preview = createShapeElement(shape, color);
+                preview.dataset.index = i;
+                preview.addEventListener('click', () => selectShape(i));
+                preview.addEventListener('dragstart', handleDragStart);
+                
+                container.appendChild(preview);
+            }
+
+            checkGameOver();
+        }
+
+        function createShapeElement(shape, color, size = 25) {
+            const container = document.createElement('div');
+            container.className = 'shape-preview';
+            
+            const rows = shape.length;
+            const cols = shape[0].length;
+            
+            container.style.gridTemplateColumns = `repeat(${cols}, ${size}px)`;
+            container.style.gridTemplateRows = `repeat(${rows}, ${size}px)`;
+
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'shape-cell';
+                    
+                    if (shape[i][j]) {
+                        cell.style.background = color;
+                        cell.style.boxShadow = `0 0 10px ${color}`;
+                    } else {
+                        cell.style.visibility = 'hidden';
+                    }
+                    
+                    container.appendChild(cell);
+                }
+            }
+
+            return container;
+        }
+
+        function selectShape(index) {
+            if (currentShapes[index].used) return;
+
+            document.querySelectorAll('.shape-preview').forEach((el, i) => {
+                el.classList.toggle('selected', i === index);
+            });
+
+            selectedShapeIndex = index;
+        }
+
+        function handleDragStart(e) {
+            const index = e.target.closest('.shape-preview').dataset.index;
+            if (currentShapes[index].used) {
+                e.preventDefault();
+                return;
+            }
+            e.dataTransfer.setData('text/plain', index);
+            selectShape(parseInt(index));
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            if (selectedShapeIndex === -1) return;
+
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+            
+            if (isNaN(row) || isNaN(col)) return;
+
+            clearPreview();
+            showPreview(row, col);
+        }
+
+        function handleDragLeave(e) {
+            clearPreview();
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            clearPreview();
+
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+
+            if (isNaN(row) || isNaN(col) || selectedShapeIndex === -1) return;
+
+            placeShape(row, col);
+        }
+
+        function handleClick(e) {
+            if (selectedShapeIndex === -1) return;
+
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+
+            if (isNaN(row) || isNaN(col)) return;
+
+            placeShape(row, col);
+        }
+
+        function showPreview(startRow, startCol) {
+            const shapeData = currentShapes[selectedShapeIndex];
+            if (!shapeData) return;
+
+            const shape = shapeData.shape;
+            
+            for (let i = 0; i < shape.length; i++) {
+                for (let j = 0; j < shape[0].length; j++) {
+                    if (shape[i][j]) {
+                        const row = startRow + i;
+                        const col = startCol + j;
+                        
+                        if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE) {
+                            const cell = getCell(row, col);
+                            if (!board[row][col]) {
+                                cell.classList.add('preview');
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function clearPreview() {
+            document.querySelectorAll('.cell.preview').forEach(cell => {
+                cell.classList.remove('preview');
+            });
+        }
+
+        function canPlaceShape(startRow, startCol) {
+            const shapeData = currentShapes[selectedShapeIndex];
+            if (!shapeData) return false;
+
+            const shape = shapeData.shape;
+            
+            for (let i = 0; i < shape.length; i++) {
+                for (let j = 0; j < shape[0].length; j++) {
+                    if (shape[i][j]) {
+                        const row = startRow + i;
+                        const col = startCol + j;
+                        
+                        if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
+                            return false;
+                        }
+                        
+                        if (board[row][col]) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            
+            return true;
+        }
+
+        function placeShape(startRow, startCol) {
+            if (!canPlaceShape(startRow, startCol)) return;
+
+            const shapeData = currentShapes[selectedShapeIndex];
+            const shape = shapeData.shape;
+            const color = shapeData.color;
+
+            for (let i = 0; i < shape.length; i++) {
+                for (let j = 0; j < shape[0].length; j++) {
+                    if (shape[i][j]) {
+                        const row = startRow + i;
+                        const col = startCol + j;
+                        board[row][col] = color;
+                        
+                        const cell = getCell(row, col);
+                        cell.style.background = color;
+                        cell.style.boxShadow = `0 0 15px ${color}`;
+                        cell.classList.add('filled');
+                    }
+                }
+            }
+
+            currentShapes[selectedShapeIndex].used = true;
+            document.querySelectorAll('.shape-preview')[selectedShapeIndex].style.opacity = '0.3';
+            document.querySelectorAll('.shape-preview')[selectedShapeIndex].style.pointerEvents = 'none';
+            
+            selectedShapeIndex = -1;
+            document.querySelectorAll('.shape-preview').forEach(el => el.classList.remove('selected'));
+
+            score += countBlocks(shape);
+            updateScore();
+
+            const linesCleared = clearLines();
+            
+            if (linesCleared > 1) {
+                showCombo(linesCleared);
+            }
+
+            if (currentShapes.every(s => s.used)) {
+                generateShapes();
+            } else {
+                checkGameOver();
+            }
+        }
+
+        function countBlocks(shape) {
+            let count = 0;
+            for (let row of shape) {
+                for (let cell of row) {
+                    if (cell) count++;
+                }
+            }
+            return count;
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            const rowsToClear = [];
+            const colsToClear = [];
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                if (board[i].every(cell => cell !== null)) {
+                    rowsToClear.push(i);
+                }
+            }
+
+            for (let j = 0; j < BOARD_SIZE; j++) {
+                let colFull = true;
+                for (let i = 0; i < BOARD_SIZE; i++) {
+                    if (!board[i][j]) {
+                        colFull = false;
+                        break;
+                    }
+                }
+                if (colFull) {
+                    colsToClear.push(j);
+                }
+            }
+
+            linesCleared = rowsToClear.length + colsToClear.length;
+
+            if (linesCleared > 0) {
+                const basePoints = linesCleared * 10;
+                const comboMultiplier = linesCleared;
+                const totalPoints = basePoints * comboMultiplier;
+                score += totalPoints;
+                updateScore();
+
+                rowsToClear.forEach(row => {
+                    for (let j = 0; j < BOARD_SIZE; j++) {
+                        animateClear(row, j);
+                        board[row][j] = null;
+                    }
+                });
+
+                colsToClear.forEach(col => {
+                    for (let i = 0; i < BOARD_SIZE; i++) {
+                        if (board[i][col] !== null) {
+                            animateClear(i, col);
+                            board[i][col] = null;
+                        }
+                    }
+                });
+
+                setTimeout(() => {
+                    renderBoard();
+                }, 300);
+            }
+
+            return linesCleared;
+        }
+
+        function animateClear(row, col) {
+            const cell = getCell(row, col);
+            cell.style.transform = 'scale(1.3)';
+            cell.style.opacity = '0';
+            
+            setTimeout(() => {
+                cell.style.transform = 'scale(1)';
+                cell.style.opacity = '1';
+                cell.style.background = 'rgba(255, 255, 255, 0.05)';
+                cell.style.boxShadow = 'none';
+                cell.classList.remove('filled');
+            }, 300);
+        }
+
+        function showCombo(count) {
+            const comboText = document.createElement('div');
+            comboText.className = 'combo-text';
+            comboText.textContent = `COMBO x${count}!`;
+            document.body.appendChild(comboText);
+
+            setTimeout(() => {
+                comboText.remove();
+            }, 1000);
+        }
+
+        function checkGameOver() {
+            const availableShapes = currentShapes.filter(s => !s.used);
+            
+            if (availableShapes.length === 0) return;
+
+            let canPlace = false;
+
+            for (let shapeData of availableShapes) {
+                for (let i = 0; i < BOARD_SIZE; i++) {
+                    for (let j = 0; j < BOARD_SIZE; j++) {
+                        if (canPlaceShapeAt(i, j, shapeData.shape)) {
+                            canPlace = true;
+                            break;
+                        }
+                    }
+                    if (canPlace) break;
+                }
+                if (canPlace) break;
+            }
+
+            if (!canPlace) {
+                showGameOver();
+            }
+        }
+
+        function canPlaceShapeAt(startRow, startCol, shape) {
+            for (let i = 0; i < shape.length; i++) {
+                for (let j = 0; j < shape[0].length; j++) {
+                    if (shape[i][j]) {
+                        const row = startRow + i;
+                        const col = startCol + j;
+                        
+                        if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
+                            return false;
+                        }
+                        
+                        if (board[row][col]) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            
+            return true;
+        }
+
+        function showGameOver() {
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('game-over').classList.add('active');
+        }
+
+        function resetGame() {
+            document.getElementById('game-over').classList.remove('active');
+            score = 0;
+            updateScore();
+            createBoard();
+            generateShapes();
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+            
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('blockdown-best', bestScore);
+                document.getElementById('best-score').textContent = bestScore;
+            }
+        }
+
+        function getCell(row, col) {
+            return document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        }
+
+        function renderBoard() {
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    const cell = getCell(i, j);
+                    if (board[i][j]) {
+                        cell.style.background = board[i][j];
+                        cell.style.boxShadow = `0 0 15px ${board[i][j]}`;
+                        cell.classList.add('filled');
+                    } else {
+                        cell.style.background = 'rgba(255, 255, 255, 0.05)';
+                        cell.style.boxShadow = 'none';
+                        cell.classList.remove('filled');
+                    }
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
